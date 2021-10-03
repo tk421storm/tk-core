@@ -17,6 +17,9 @@ import sys
 import imp
 import traceback
 import inspect
+from hashlib import md5
+from pprint import pprint
+from traceback import format_exc
 
 from ..errors import TankError
 from .. import LogManager
@@ -47,12 +50,13 @@ def load_plugin(plugin_file, valid_base_class, alternate_base_classes=None):
     # build a single list of valid base classes including any alternate base classes
     alternate_base_classes = alternate_base_classes or []
     valid_base_classes = [valid_base_class] + alternate_base_classes
+    
+    print "loading "+str(plugin_file)+" with valid base classes: "+str(valid_base_classes)
 
     # construct a uuid and use this as the module name to ensure
     # that each import is unique
-    import uuid
 
-    module_uid = uuid.uuid4().hex
+    module_uid = md5(plugin_file).hexdigest()
     module = None
     try:
         imp.acquire_lock()
@@ -76,6 +80,8 @@ def load_plugin(plugin_file, valid_base_class, alternate_base_classes=None):
         raise TankLoadPluginError(message)
     finally:
         imp.release_lock()
+        
+    print "using module "+str(module)
 
     # cool, now validate the module
     found_classes = list()
@@ -87,6 +93,8 @@ def load_plugin(plugin_file, valid_base_class, alternate_base_classes=None):
             and member.__module__ == module.__name__
         )
         all_classes = [cls for _, cls in inspect.getmembers(module, search_predicate)]
+        
+        print "checking in all base classes: "+str(all_classes)
 
         # Now look for classes in the module that are derived from the specified base
         # class.  Note that 'inspect.getmembers' returns the contents of the module
@@ -95,22 +103,42 @@ def load_plugin(plugin_file, valid_base_class, alternate_base_classes=None):
         # Enumerate the valid_base_classes in order so that we find the highest derived
         # class we can.
         for base_cls in valid_base_classes:
-            found_classes = [cls for cls in all_classes if issubclass(cls, base_cls)]
+            print "checking classes under "+str(base_cls)+str((base_cls.__module__, inspect.getfile(sys.modules[base_cls.__module__])))
+            found_classes = []
+            for cls in all_classes:
+                #issubclass and importing with the imp modules dont mesh well
+                #if a class is imported more than once with the imp commands, issubclass will report FALSE
+                #even if the class is correctly subclassed from the file
+                base=str(base_cls).split("'")[1]
+                print "checking for "+base+" in "+str([str(classer).split("'")[1] for classer in cls.__bases__])
+                if issubclass(cls, base_cls):
+                    print "allowing "+str(cls)+" ("+str(type(cls))+") because it correctly inherits "+str({classer:(classer.__module__, inspect.getfile(sys.modules[classer.__module__])) for classer in cls.__bases__})
+                    found_classes.append(cls)
+                elif base in [str(classer).split("'")[1] for classer in cls.__bases__]:
+                    print "allowing "+str(cls)+" ("+str(type(cls))+") through text verification "
+                    found_classes.append(cls)
+                else:
+                    print "skipping "+str(cls)+" ("+str(type(cls))+") because it inherits "+str({classer:(classer.__module__, inspect.getfile(sys.modules[classer.__module__])) for classer in cls.__bases__})+" (issubclass of "+str(base_cls)+": "+str(issubclass(cls, base_cls))+")"
+            print "  found :"+str(found_classes)
             if len(found_classes) > 1:
                 # it's possible that this file contains multiple levels of derivation - if this
                 # is the case then we should try to remove any intermediate classes from the list
                 # of found classes so that we are left with only leaf classes:
                 filtered_classes = list(found_classes)
                 for cls in found_classes:
+                    print "class "+str(cls)+" has bases: "+str(cls.__bases__)
                     for base in cls.__bases__:
                         if base in filtered_classes:
                             # this is an intermediate class so remove it from the list:
+                            print "removing "+str(base)+' from the list because it is in intermediate base class'
                             filtered_classes.remove(base)
                 found_classes = filtered_classes
             if found_classes:
                 # we found at least one class so assume this is a match!
                 break
     except Exception as e:
+        
+        print format_exc()
 
         # log the full callstack to make sure that whatever the
         # calling code is doing, this error is logged to help
@@ -133,7 +161,7 @@ def load_plugin(plugin_file, valid_base_class, alternate_base_classes=None):
             "the .pyc file and try again." % (plugin_file, valid_base_class.__name__)
         )
 
-        raise TankLoadPluginError(msg)
+        raise TankLoadPluginError(msg+"\nclasses found: "+str(found_classes))
 
     # return the class that was found.
     return found_classes[0]
