@@ -722,12 +722,11 @@ def create_hook_instance(hook_paths, parent, base_class=None):
             )
 
         # keep track of the current base class:
-        #_current_hook_baseclass.value = found_hook_class
+        _current_hook_baseclass.value = found_hook_class
 
     # all class construction done. _current_hook_baseclass contains the last
     # class we iterated over. An instance of this is what we want to return
-    #return _current_hook_baseclass.value(parent)
-    return found_hook_class(parent)
+    return _current_hook_baseclass.value(parent)
 
 
 def get_hook_baseclass():
