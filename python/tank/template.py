@@ -520,7 +520,7 @@ class TemplatePath(Template):
     and you can pass it per-os roots given by a separate :meth:`root_path`.
     """
 
-    def __init__(self, definition, keys, root_path, name=None, per_platform_roots=None):
+    def __init__(self, definition, keys, root_path, pipelineConfig, name=None, per_platform_roots=None):
         """
         TemplatePath objects are typically created automatically by toolkit reading
         the template configuration.
@@ -533,6 +533,7 @@ class TemplatePath(Template):
                                    This is a dictionary with sys.platform-style keys
         """
         super(TemplatePath, self).__init__(definition, keys, name=name)
+        self._pc = pipelineConfig
         self._prefix = root_path
         self._per_platform_roots = per_platform_roots
 
@@ -600,6 +601,9 @@ class TemplatePath(Template):
 
         :returns: Full path, matching the template with the given fields inserted.
         """
+        #first run core hook on template fields
+        fields=self._pc.execute_core_hook_method_internal('template_fields', 'modifyFields', self, fields=fields)
+
         relative_path = super(TemplatePath, self)._apply_fields(
             fields, ignore_types, platform, skip_defaults=skip_defaults
         )
@@ -761,6 +765,7 @@ def read_templates(pipeline_configuration):
         get_data_section("paths"),
         keys,
         per_platform_roots,
+        pipeline_config=pipeline_configuration,
         default_root=pipeline_configuration.get_primary_data_root_name(),
     )
 
@@ -781,7 +786,7 @@ def read_templates(pipeline_configuration):
     return templates
 
 
-def make_template_paths(data, keys, all_per_platform_roots, default_root=None):
+def make_template_paths(data, keys, all_per_platform_roots, pipeline_config, default_root=None):
     """
     Factory function which creates TemplatePaths.
 
@@ -840,6 +845,7 @@ def make_template_paths(data, keys, all_per_platform_roots, default_root=None):
             definition,
             keys,
             root_path,
+            pipeline_config,
             template_name,
             all_per_platform_roots[root_name],
         )
