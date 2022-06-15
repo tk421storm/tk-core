@@ -18,11 +18,14 @@ import os
 from . import templatekey
 from .errors import TankError
 from . import constants
+from . import LogManager
 from .template_path_parser import TemplatePathParser
 from tank_vendor import six
 from tank_vendor.shotgun_api3.lib import sgsix
 from tank_vendor.six.moves import zip
 from tank.util import is_linux, is_macos, is_windows, sgre as re
+
+log = LogManager.get_logger(__name__)
 
 
 class Template(object):
@@ -602,7 +605,12 @@ class TemplatePath(Template):
         :returns: Full path, matching the template with the given fields inserted.
         """
         #first run core hook on template fields
-        fields=self._pc.execute_core_hook_method_internal('template_fields', 'modifyFields', self, fields=fields)
+        if self._pc:
+        	#believe it or not, sometimes pipeline config will be None. of course, this makes no sense
+        	#but have we forgotten where we are?
+            fields=self._pc.execute_core_hook_method_internal('template_fields', 'modifyFields', self, fields=fields)
+        else:
+        	log.warning('Template created with PipelineConfig None, cannot run core hook template_fields')
 
         relative_path = super(TemplatePath, self)._apply_fields(
             fields, ignore_types, platform, skip_defaults=skip_defaults
