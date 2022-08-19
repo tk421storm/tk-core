@@ -96,7 +96,7 @@ def _resolve_includes(file_name, data, context):
                     template_keys[key_name] = StringKey(key_name)
 
                 # Make a template
-                template = TemplatePath(include, template_keys, primary_data_root)
+                template = TemplatePath(include, template_keys, primary_data_root, context.tank.pipeline_configuration)
             except TankError as e:
                 raise TankError(
                     "Syntax error in %s: Could not transform include path '%s' "
