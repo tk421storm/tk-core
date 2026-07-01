@@ -11,13 +11,13 @@
 import os
 import unittest
 import shutil
-from mock import Mock
 import tank
 from tank_vendor import yaml
 from tank import TankError
 from tank import hook
 from tank import folder
-from tank_test.tank_test_base import *
+from tank_test.tank_test_base import setUpModule # noqa
+from tank_test.tank_test_base import TankTestBase
 
 
 class TestFolderConfiguration(TankTestBase):
@@ -26,7 +26,7 @@ class TestFolderConfiguration(TankTestBase):
     """
 
     def setUp(self):
-        super(TestFolderConfiguration, self).setUp()
+        super().setUp()
         self.schema_location = os.path.join(
             self.pipeline_config_root, "config", "core", "schema"
         )

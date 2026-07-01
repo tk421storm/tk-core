@@ -17,7 +17,6 @@ a primed bundle cache.
 """
 
 # system imports
-from __future__ import with_statement
 import os
 import sys
 import shutil
@@ -26,7 +25,9 @@ import datetime
 # add sgtk API
 this_folder = os.path.abspath(os.path.dirname(__file__))
 python_folder = os.path.abspath(os.path.join(this_folder, "..", "python"))
-sys.path.append(python_folder)
+# Insert at the beginning to ensure local tk-core takes precedence over
+# any installed version in site-packages
+sys.path.insert(0, python_folder)
 
 # sgtk imports
 from tank import LogManager
@@ -348,7 +349,7 @@ def _bake_manifest(manifest_data, config_uri, core_descriptor, plugin_root):
 
             fh.write('base_configuration="%s"\n' % config_uri)
 
-            for (parameter, value) in manifest_data.items():
+            for parameter, value in manifest_data.items():
 
                 if parameter == "base_configuration":
                     continue
@@ -560,7 +561,7 @@ def build_plugin(
     # uri to use at runtime - in the case of baked descriptors, the config_uri_str
     # contains a manual descriptor uri and install_path is set with the baked
     # folder.
-    (cfg_descriptor, config_uri_str, install_path) = _process_configuration(
+    cfg_descriptor, config_uri_str, install_path = _process_configuration(
         sg_connection,
         source_path,
         target_path,
@@ -729,9 +730,7 @@ For information about the various descriptors that can be used, see
 http://developer.shotgridsoftware.com/tk-core/descriptor
 
 
-""".format(
-        automated_setup_documentation=automated_setup_documentation
-    ).format(
+""".format(automated_setup_documentation=automated_setup_documentation).format(
         script_name="build_plugin.py"
     )
     parser = OptionParserLineBreakingEpilog(
@@ -770,7 +769,7 @@ http://developer.shotgridsoftware.com/tk-core/descriptor
     add_authentication_options(parser)
 
     # parse cmd line
-    (options, remaining_args) = parser.parse_args()
+    options, remaining_args = parser.parse_args()
 
     logger.info("Welcome to the Toolkit plugin builder.")
     logger.info("")
@@ -815,7 +814,7 @@ http://developer.shotgridsoftware.com/tk-core/descriptor
     try:
         sg_connection.find_one("HumanUser", [])
     except Exception as e:
-        logger.error("Could not communicate with ShotGrid: %s" % e)
+        logger.error("Could not communicate with Flow Production Tracking: %s" % e)
         return 3
 
     # we are all set.

@@ -9,6 +9,8 @@
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
 import os
+import pickle
+import sys
 from tank_vendor import yaml
 import sgtk
 import tank
@@ -16,10 +18,12 @@ from tank.api import Tank
 from tank.util import is_windows
 from tank.errors import TankInitError
 from sgtk.util import ShotgunPath
-from tank_test.tank_test_base import TankTestBase, ShotgunTestBase, setUpModule  # noqa
-from mock import patch
-import tank_vendor.six.moves.cPickle as pickle
-from tank_vendor.shotgun_api3.lib import sgsix
+from tank_test.tank_test_base import setUpModule  # noqa
+from tank_test.tank_test_base import (
+    mock,
+    ShotgunTestBase,
+    TankTestBase,
+)
 
 
 class TestTankFromPath(TankTestBase):
@@ -28,7 +32,7 @@ class TestTankFromPath(TankTestBase):
     """
 
     def setUp(self):
-        super(TestTankFromPath, self).setUp()
+        super().setUp()
         self.setup_multi_root_fixtures()
 
     def test_primary_branch(self):
@@ -71,7 +75,7 @@ class TestArchivedProjects(TankTestBase):
     """
 
     def setUp(self):
-        super(TestArchivedProjects, self).setUp()
+        super().setUp()
         self.setup_fixtures()
 
         # archive default project
@@ -107,7 +111,7 @@ class TestTankFromEntity(TankTestBase):
     """
 
     def setUp(self):
-        super(TestTankFromEntity, self).setUp()
+        super().setUp()
 
         self.setup_fixtures()
 
@@ -219,7 +223,7 @@ class TestTankFromPathDuplicatePcPaths(TankTestBase):
     """
 
     def setUp(self):
-        super(TestTankFromPathDuplicatePcPaths, self).setUp()
+        super().setUp()
 
         # define an additional pipeline config with overlapping paths
         self.overlapping_pc = {
@@ -312,7 +316,7 @@ class TestPipelineConfigurationEnumeration(ShotgunTestBase):
     """
 
     def setUp(self):
-        super(TestPipelineConfigurationEnumeration, self).setUp()
+        super().setUp()
 
         # Clean Mockgun of existing project and pipeline configurations. We want a clean slate.
         self.mockgun.delete("PipelineConfiguration", self.sg_pc_entity["id"])
@@ -514,18 +518,18 @@ class TestLookupCache(ShotgunTestBase):
         """
         The cache's schema has changed, ensure it stays backwards compatible.
         """
-        with patch(
+        with mock.patch(
             "tank.util.shotgun.get_sg_connection", return_value=self.mockgun
-        ) as mock:
+        ) as mock1:
             # Force read from Shotgun, a connection must be made to Shotgun.
-            mock.reset_mock()
+            mock1.reset_mock()
             sgtk.pipelineconfig_factory._get_pipeline_configs(True)
-            self.assertTrue(mock.called)
+            self.assertTrue(mock1.called)
 
             # Do not force read from Shotgun, there should be a cache hit.
-            mock.reset_mock()
+            mock1.reset_mock()
             sgtk.pipelineconfig_factory._get_pipeline_configs(False)
-            self.assertFalse(mock.called)
+            self.assertFalse(mock1.called)
 
             cache_data = sgtk.pipelineconfig_factory._load_lookup_cache()
             # The new paths_v2 sections should be in there.
@@ -539,9 +543,9 @@ class TestLookupCache(ShotgunTestBase):
 
             # Do not force read from Shotgun, but since the cache is not present
             # it should be loaded from Shotgun.
-            mock.reset_mock()
+            mock1.reset_mock()
             sgtk.pipelineconfig_factory._get_pipeline_configs(False)
-            self.assertTrue(mock.called)
+            self.assertTrue(mock1.called)
 
 
 class TestTankFromWithSiteConfig(TankTestBase):
@@ -550,7 +554,7 @@ class TestTankFromWithSiteConfig(TankTestBase):
     """
 
     def setUp(self):
-        super(TestTankFromWithSiteConfig, self).setUp()
+        super().setUp()
         # Turn the config into a site configuration.
         self.mockgun.update(
             "PipelineConfiguration",
@@ -667,7 +671,7 @@ class TestTankFromPathWindowsNoSlash(TankTestBase):
     def setUp(self):
 
         # set up a project named temp, so that it will end up in c:\temp
-        super(TestTankFromPathWindowsNoSlash, self).setUp(
+        super().setUp(
             parameters={"project_tank_name": self.PROJECT_NAME}
         )
 
@@ -742,7 +746,7 @@ class TestTankFromPathOverlapStorage(TankTestBase):
     def setUp(self):
 
         # set up two storages and two projects
-        super(TestTankFromPathOverlapStorage, self).setUp(
+        super().setUp(
             parameters={"project_tank_name": "foo"}
         )
 
@@ -826,9 +830,9 @@ class TestTankFromPathOverlapStorage(TankTestBase):
         probe_path = {}
         probe_path["win32"] = "C:\\temp\\foo\\bar\\test.ma"
         probe_path["darwin"] = "/tmp/foo/bar/test.ma"
-        probe_path["linux2"] = "/tmp/foo/bar/test.ma"
+        probe_path["linux"] = "/tmp/foo/bar/test.ma"
 
-        test_path = probe_path[sgsix.platform]
+        test_path = probe_path[sys.platform]
         test_path_dir = os.path.dirname(test_path)
 
         if not os.path.exists(test_path_dir):
@@ -856,9 +860,9 @@ class TestTankFromPathOverlapStorage(TankTestBase):
         probe_path = {}
         probe_path["win32"] = "C:\\temp\\foo\\bar\\test.ma"
         probe_path["darwin"] = "/tmp/foo/bar/test.ma"
-        probe_path["linux2"] = "/tmp/foo/bar/test.ma"
+        probe_path["linux"] = "/tmp/foo/bar/test.ma"
 
-        test_path = probe_path[sgsix.platform]
+        test_path = probe_path[sys.platform]
         test_path_dir = os.path.dirname(test_path)
 
         if not os.path.exists(test_path_dir):
@@ -881,7 +885,7 @@ class TestTankFromPathPCWithProjectWithoutTankName(TankTestBase):
 
     def setUp(self):
 
-        super(TestTankFromPathPCWithProjectWithoutTankName, self).setUp()
+        super().setUp()
 
         # a separate project record without the tank name set
         self.other_project = {

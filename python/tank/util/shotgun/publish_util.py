@@ -12,8 +12,6 @@
 Utility methods related to Published Files in Shotgun
 """
 
-from __future__ import with_statement
-
 from ...log import LogManager
 from ..shotgun_path import ShotgunPath
 from .. import constants
@@ -69,7 +67,7 @@ def get_cached_local_storages(tk):
     storage_data = tk.get_cache_item(constants.SHOTGUN_LOCAL_STORAGES_CACHE_KEY)
 
     if storage_data is None:
-        log.debug("Caching SG local storages...")
+        log.debug("Caching PTR local storages...")
         storage_data = tk.shotgun.find(
             "LocalStorage", [], ["id", "code"] + ShotgunPath.SHOTGUN_PATH_FIELDS
         )

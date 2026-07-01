@@ -9,8 +9,6 @@
 # agreement to the Shotgun Pipeline Toolkit Source Code License. All rights
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
-from __future__ import print_function
-
 import sys
 import os
 import glob
@@ -45,7 +43,7 @@ test_python_path = os.path.join(test_python_path, "third_party")
 print("Adding tests/python/third_party location to python_path: %s" % test_python_path)
 sys.path = [test_python_path] + sys.path
 
-import unittest2 as unittest
+import unittest as unittest
 
 
 class TankTestRunner(object):

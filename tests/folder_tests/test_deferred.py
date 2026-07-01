@@ -9,9 +9,7 @@
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
 import os
-import unittest
 import shutil
-from mock import Mock
 import tank
 from tank_vendor import yaml
 from tank import TankError
@@ -24,7 +22,7 @@ class TestDeferredFolderCreation(TankTestBase):
     """Test deferring of folder creation."""
 
     def setUp(self):
-        super(TestDeferredFolderCreation, self).setUp()
+        super().setUp()
         self.setup_fixtures(parameters={"core": "core.override/deferred_core"})
 
         self.shot = {

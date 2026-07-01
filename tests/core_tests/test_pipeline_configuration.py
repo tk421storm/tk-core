@@ -12,10 +12,12 @@ import os
 import logging
 import shutil
 
-from mock import patch
-
 from tank_test.tank_test_base import setUpModule  # noqa
-from tank_test.tank_test_base import TankTestBase, temp_env_var
+from tank_test.tank_test_base import (
+    mock,
+    TankTestBase,
+    temp_env_var,
+)
 
 import tank
 from tank.commands import get_command
@@ -155,7 +157,7 @@ class TestConfigLocations(TankTestBase):
     """
 
     def setUp(self):
-        super(TestConfigLocations, self).setUp({"primary_root_name": "primary"})
+        super().setUp({"primary_root_name": "primary"})
         self._project = self.mockgun.create(
             "Project", {"name": "config_locations_test"}
         )
@@ -304,13 +306,13 @@ class TestConfigLocations(TankTestBase):
             self.assertEqual(tank.pipelineconfig_utils.is_localized(core_root), True)
 
         # We have to patch these methods because the core doesn't actually exist on disk for the tests.
-        with patch(
+        with mock.patch(
             "sgtk.pipelineconfig_utils.get_path_to_current_core", return_value=core_root
         ):
-            with patch(
+            with mock.patch(
                 "sgtk.pipelineconfig_utils.resolve_all_os_paths_to_core",
                 return_value={
-                    "linux2": core_root if is_linux() else None,
+                    "linux": core_root if is_linux() else None,
                     "win32": core_root if is_windows() else None,
                     "darwin": core_root if is_macos() else None,
                 },

@@ -14,7 +14,7 @@ Methods for loading and managing plugins, e.g. Apps, Engines, Hooks etc.
 """
 
 import sys, os
-import imp, importlib
+import importlib.util
 import traceback
 import inspect
 from hashlib import md5
@@ -71,20 +71,11 @@ def load_plugin(plugin_file, valid_base_class, alternate_base_classes=None):
 
     module = None
     try:
-        if not python3:
-            imp.acquire_lock()
-            module = imp.load_source(module_uid, plugin_file)
-        else:
-            loader=importlib.machinery.SourceFileLoader(module_uid, plugin_file)
-            spec =importlib.util.spec_from_loader(loader.name, loader)
-            module=importlib.util.module_from_spec(spec)
-            loader.exec_module(module)
-            sys.modules[module_uid]=module
-    except:
-        # dump out the callstack for this one -- to help people get good messages when there is a plugin error
-        (exc_type, exc_value, exc_traceback) = sys.exc_info()
-        
-        log.debug(exc_traceback)
+        plugin_spec = importlib.util.spec_from_file_location(module_uid, plugin_file)
+        module = importlib.util.module_from_spec(plugin_spec)
+        sys.modules[module.__name__] = module
+        plugin_spec.loader.exec_module(module)
+    except Exception:
         # log the full callstack to make sure that whatever the
         # calling code is doing, this error is logged to help
         # with troubleshooting and support
@@ -100,9 +91,6 @@ def load_plugin(plugin_file, valid_base_class, alternate_base_classes=None):
         message += "Traceback (most recent call last):\n"
         message += "\n".join(traceback.format_tb(exc_traceback))
         raise TankLoadPluginError(message)
-    finally:
-        if not python3:
-            imp.release_lock()
         
     log.debug(os.path.basename(plugin_file)+': plugin loaded as '+str(module))
 

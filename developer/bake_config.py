@@ -14,7 +14,6 @@ a local path.
 """
 
 # system imports
-from __future__ import with_statement
 import os
 import sys
 import shutil
@@ -22,7 +21,9 @@ import shutil
 # add sgtk API
 this_folder = os.path.abspath(os.path.dirname(__file__))
 python_folder = os.path.abspath(os.path.join(this_folder, "..", "python"))
-sys.path.append(python_folder)
+# Insert at the beginning to ensure local tk-core takes precedence over
+# any installed version in site-packages
+sys.path.insert(0, python_folder)
 
 # sgtk imports
 from tank import LogManager
@@ -192,7 +193,7 @@ def main():
 
     desc = "Bake a self contained Toolkit config from a descriptor"
 
-    epilog = """
+    epilog = f"""
 
 Details and Examples
 --------------------
@@ -212,17 +213,14 @@ Any type of Toolkit config descriptor uri can be used, if a version is not speci
 By default, all bundle types are cached. If you want to omit certain types, simply provide a comma seperated list
 of bundle types to skip, e.g. --skip-bundle-types=app_store,shotgun,github_release.
 
-{automated_setup_documentation}
+f{automated_setup_documentation}
 
 For information about the various descriptors that can be used, see
 http://developer.shotgridsoftware.com/tk-core/descriptor
 
 
-""".format(
-        automated_setup_documentation=automated_setup_documentation
-    ).format(
-        script_name="bake_config.py"
-    )
+"""
+
     parser = OptionParserLineBreakingEpilog(
         usage=usage, description=desc, epilog=epilog
     )
@@ -247,7 +245,7 @@ http://developer.shotgridsoftware.com/tk-core/descriptor
     add_authentication_options(parser)
 
     # parse cmd line
-    (options, remaining_args) = parser.parse_args()
+    options, remaining_args = parser.parse_args()
 
     logger.info("Welcome to the Toolkit config baker.")
     logger.info("")
@@ -294,7 +292,7 @@ http://developer.shotgridsoftware.com/tk-core/descriptor
     try:
         sg_connection.find_one("HumanUser", [])
     except Exception as e:
-        logger.error("Could not communicate with ShotGrid: %s" % e)
+        logger.error("Could not communicate with Flow Production Tracking: %s" % e)
         return 3
 
     # Strip any extra whitespaces and make sure every bundle type exists.

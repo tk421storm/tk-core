@@ -79,8 +79,8 @@ class Static(Folder):
             if not isinstance(resolved_constrain_node, Entity):
                 raise TankError(
                     "Configuration error in %s: constrain_by_entity points "
-                    "at a node which is not associated with any SG data. "
-                    "You can only constrain based on nodes which have a SG "
+                    "at a node which is not associated with any PTR data. "
+                    "You can only constrain based on nodes which have a PTR "
                     "representation." % full_path
                 )
 
@@ -140,7 +140,7 @@ class Static(Folder):
             return False
 
         # base class implementation
-        return super(Static, self)._should_item_be_processed(engine_str, is_primary)
+        return super()._should_item_be_processed(engine_str, is_primary)
 
     def _create_folders_impl(self, io_receiver, parent_path, sg_data):
         """

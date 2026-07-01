@@ -12,8 +12,6 @@
 Defines the base class for all Tank Engines.
 """
 
-from __future__ import with_statement
-
 import os
 import sys
 import logging
@@ -22,8 +20,6 @@ import traceback
 import inspect
 import weakref
 import threading
-
-from tank_vendor import six
 
 from ..util.qt_importer import QtImporter
 from ..util.loader import load_plugin
@@ -41,6 +37,7 @@ from .errors import (
 from ..util import sgre as re
 from ..util.metrics import EventMetric
 from ..util.metrics import MetricsDispatcher
+from ..util import metrics_cache
 from ..log import LogManager
 
 from . import application
@@ -49,6 +46,7 @@ from . import validation
 from . import events
 from . import qt
 from . import qt5
+from . import qt6
 from .bundle import TankBundle
 from .framework import setup_frameworks
 from .engine_logging import ToolkitEngineHandler, ToolkitEngineLegacyHandler
@@ -92,6 +90,7 @@ class Engine(TankBundle):
         self.__created_qt_dialogs = []
         self.__qt_debug_info = {}
         self.__has_qt5 = False
+        self.__has_qt6 = False
 
         self.__commands_that_need_prefixing = []
 
@@ -172,12 +171,19 @@ class Engine(TankBundle):
         base_def = self._define_qt_base()
         qt.QtCore = base_def.get("qt_core")
         qt.QtGui = base_def.get("qt_gui")
+        qt.QtWebEngineWidgets = base_def.get("qt_web_engine_widgets")
         qt.TankDialogBase = base_def.get("dialog_base")
+        qt.shiboken = base_def.get("shiboken")
 
         qt5_base = self.__define_qt5_base()
         self.__has_qt5 = len(qt5_base) > 0
         for name, value in qt5_base.items():
             setattr(qt5, name, value)
+
+        qt6_base = self.__define_qt6_base()
+        self.__has_qt6 = len(qt6_base) > 0
+        for name, value in qt6_base.items():
+            setattr(qt6, name, value)
 
         # Update the authentication module to use the engine's Qt.
         # @todo: can this import be untangled? Code references internal part of the auth module
@@ -185,6 +191,7 @@ class Engine(TankBundle):
 
         qt_abstraction.QtCore = qt.QtCore
         qt_abstraction.QtGui = qt.QtGui
+        qt_abstraction.QtWebEngineWidgets = qt.QtWebEngineWidgets
 
         # load the fonts. this will work if there is a QApplication instance
         # available.
@@ -335,10 +342,7 @@ class Engine(TankBundle):
         running_method = getattr(self, method_name)
         base_method = getattr(Engine, method_name)
 
-        # This should be a safe way to test, and is both Python 2 and 3 compatible.
-        # the __func__ attribute of callables that was previously used was removed
-        # in Python 3.4, and rather than continue to use that only in python 2, we
-        # will use the universally available __module__ attribute.
+        # This should be a safe way to test.
         return running_method.__module__ != base_method.__module__
 
     def __has_018_logging_support(self):
@@ -624,25 +628,24 @@ class Engine(TankBundle):
         return self.__has_qt5
 
     @property
-    def has_qt4(self):
+    def has_qt6(self):
         """
-        Indicates that the host application has access to Qt 4 and that the ``sgtk.platform.qt``  module
-        has been populated with the Qt 4 modules and information.
+        Indicates that the host application has access to Qt 6 and that the ``sgtk.platform.qt6`` module
+        has been populated with the Qt 6 modules and information.
 
-        :returns bool: boolean value indicating if Qt 4 is available.
+        :returns bool: boolean value indicating if Qt 6 is available.
         """
-        # Check if Qt was imported. Then checks if a Qt4 compatible api is available.
-        return hasattr(qt, "QtGui") and hasattr(qt.QtGui, "QApplication")
+        return self.__has_qt6
 
     @property
     def metrics_dispatch_allowed(self):
         """
         Indicates this engine will allow the metrics worker threads to forward
         the user metrics logged via core, this engine, or registered apps to
-        SG.
+        PTR.
 
         :returns: boolean value indicating that the engine allows user metrics
-            to be forwarded to SG.
+            to be forwarded to PTR.
         """
         return True
 
@@ -899,7 +902,7 @@ class Engine(TankBundle):
         In most cases, commands will appear as items on a Shotgun dropdown
         menu, but it ultimately depends on the engine - in the Shell engine,
         commands are instead represented as a text base listing and in the
-        Shotgun Desktop it is a scrollable list of larger icons.
+        PTR desktop app it is a scrollable list of larger icons.
 
         .. note:: This method is used to add menu entries for launching
            toolkit UIs. If you wish to register a panel UI with toolkit,
@@ -1054,16 +1057,7 @@ class Engine(TankBundle):
         # to highlight this state. This is used by the tank_command
         # execution logic to correctly dispatch the callback during
         # runtime.
-        # getargspec has been deprecated in Python 3 and generates a copious
-        # amount of warnings, so use getfullargspec which is backwards
-        # compatible in Python 3. Unfortunately, it doesn't exist in Python
-        # 2 and six doesn't offer a wrapper for it.
-        if six.PY2:
-            arg_spec = inspect.getargspec(callback)
-        else:
-            arg_spec = inspect.getfullargspec(callback)
-        # note - cannot use named tuple form because it is py2.6+
-        arg_list = arg_spec[0]
+        arg_list = inspect.getfullargspec(callback)[0]
 
         if "entity_type" in arg_list and "entity_ids" in arg_list:
             # add property flag
@@ -1071,7 +1065,6 @@ class Engine(TankBundle):
 
         # define a generic callback wrapper for metrics logging
         def callback_wrapper(*args, **kwargs):
-
             if properties.get("app"):
                 # Track which app command is being launched
                 command_name = properties.get("short_name") or name
@@ -1698,7 +1691,7 @@ class Engine(TankBundle):
             # ticket.
             class _exc_widget(QtGui.QWidget):
                 def __init__(self, msg, *args, **kwargs):
-                    super(_exc_widget, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
 
                     self.setObjectName("SGTK_CORE_EXC_WIDGET")
 
@@ -2135,16 +2128,18 @@ class Engine(TankBundle):
 
         :returns: dict
         """
-        base = {"qt_core": None, "qt_gui": None, "dialog_base": None}
+        base = {"qt_core": None, "qt_gui": None, "qt_web_engine_widgets": None, "dialog_base": None}
         try:
             importer = QtImporter()
             base["qt_core"] = importer.QtCore
             base["qt_gui"] = importer.QtGui
+            base["qt_web_engine_widgets"] = importer.QtWebEngineWidgets
             if importer.QtGui:
                 base["dialog_base"] = importer.QtGui.QDialog
             else:
                 base["dialog_base"] = None
             base["wrapper"] = importer.binding
+            base["shiboken"] = importer.shiboken
         except:
 
             self.log_exception(
@@ -2167,6 +2162,17 @@ class Engine(TankBundle):
         """
         return QtImporter(interface_version_requested=QtImporter.QT5).base
 
+    def __define_qt6_base(self):
+        """
+        This will be called at initialization to discover every PySide6 module. It should provide
+        every Qt modules available as well as two extra attributes, ``__name__`` and
+        ``__version__``, which refer to the name of the binding and it's version, e.g.
+        PySide6 and 6.2.7
+
+        :returns: A dictionary with all the modules, __version__ and __name__.
+        """
+        return QtImporter(interface_version_requested=QtImporter.QT6).base
+
     def _initialize_dark_look_and_feel(self):
         """
         Initializes a standard toolkit look and feel using a combination of
@@ -2181,29 +2187,26 @@ class Engine(TankBundle):
         standard dark mode.
 
         This will initialize the plastique style (for Qt4) or the fusion style
-        (for Qt5), and set it up with a standard dark palette and supporting
+        (for Qt5/Qt6), and set it up with a standard dark palette and supporting
         stylesheet.
 
-        `Qt4 setStyle documentation <http://doc.qt.io/archives/qt-4.8/qapplication.html#setStyle-2>`_
         `Qt5 setStyle documentation <https://doc.qt.io/qt-5.10/qapplication.html#setStyle-1>`_
+        `Qt6 setStyle documentation <https://doc.qt.io/qt-6/qapplication.html#setStyle-1>`_
 
         Apps and UIs can then extend this further by using further css.
 
         Due to restrictions in QT, this needs to run after a QApplication object
         has been instantiated.
         """
-        if self.has_qt5:
-            self.log_debug("Applying Qt5-specific styling...")
-            self.__initialize_dark_look_and_feel_qt5()
-        elif self.has_qt4:
-            self.log_debug("Applying Qt4-specific styling...")
-            self.__initialize_dark_look_and_feel_qt4()
+        if self.has_qt5 or self.has_qt6:
+            self.log_debug("Applying Qt5/Qt6-specific styling (Fusion)...")
+            self.__initialize_dark_look_and_feel_qt5_qt6()
         else:
             self.log_warning(
-                "Neither Qt4 or Qt5 is available. Toolkit styling will not be applied."
+                "Neither Qt5 or Qt6 is available. Toolkit styling will not be applied."
             )
 
-    def __initialize_dark_look_and_feel_qt5(self):
+    def __initialize_dark_look_and_feel_qt5_qt6(self):
         """
         Applies a dark style for Qt5 environments. This sets the "fusion" style
         at the application level, and then constructs and applies a custom palette
@@ -2382,93 +2385,6 @@ class Engine(TankBundle):
         # a couple of styling quirks in the tank dialog header when it's
         # used with the fusion style.
         app.setStyleSheet(".QWidget { font-size: 11px; }")
-
-    def __initialize_dark_look_and_feel_qt4(self):
-        """
-        Applies a dark style for Qt4 environments. This sets the "plastique"
-        style at the application level, and then loads a Maya-2014-like QPalette
-        to give a consistent dark theme to all widgets owned by the current
-        application. Lastly, a stylesheet is read from disk and applied.
-        """
-        from .qt import QtGui, QtCore
-
-        # Since know we have a QApplication at this point, go ahead and make
-        # sure the bundled fonts are loaded
-        self._ensure_core_fonts_loaded()
-
-        # initialize our style
-        QtGui.QApplication.setStyle("plastique")
-
-        # Read in a serialized version of a palette
-        # this file was generated in the following way:
-        #
-        # Inside of maya 2014, the following code was executed:
-        #
-        # from PySide import QtGui, QtCore
-        # app = QtCore.QCoreApplication.instance()
-        # fh = QtCore.QFile("/tmp/palette.dump")
-        # fh.open(QtCore.QIODevice.WriteOnly)
-        # out = QtCore.QDataStream(fh)
-        # out.__lshift__( app.palette() )
-        # fh.close()
-        #
-        # When we load this up in our engine, we will get a look
-        # and feel similar to that of maya.
-
-        try:
-            # open palette file
-            palette_file = self.__get_platform_resource_path("dark_palette.qpalette")
-            fh = QtCore.QFile(palette_file)
-            fh.open(QtCore.QIODevice.ReadOnly)
-            file_in = QtCore.QDataStream(fh)
-
-            # deserialize the palette
-            # (store it for GC purposes)
-            self._dark_palette = QtGui.QPalette()
-            file_in.__rshift__(self._dark_palette)
-            fh.close()
-
-            # set the std selection bg color to be 'SG blue'
-            highlight_color = QtGui.QBrush(
-                QtGui.QColor(constants.SG_STYLESHEET_CONSTANTS["SG_HIGHLIGHT_COLOR"])
-            )
-            self._dark_palette.setBrush(QtGui.QPalette.Highlight, highlight_color)
-
-            # update link colors
-            fg_color = self._dark_palette.color(QtGui.QPalette.Text)
-            self._dark_palette.setColor(QtGui.QPalette.Link, fg_color)
-            self._dark_palette.setColor(QtGui.QPalette.LinkVisited, fg_color)
-
-            self._dark_palette.setBrush(
-                QtGui.QPalette.HighlightedText, QtGui.QBrush(QtGui.QColor("#FFFFFF"))
-            )
-
-            # and associate it with the qapplication
-            QtGui.QApplication.setPalette(self._dark_palette)
-
-        except Exception as e:
-            self.log_error(
-                "The standard toolkit dark palette could not be set up! The look and feel of your "
-                "toolkit apps may be sub standard. Please contact support. Details: %s"
-                % e
-            )
-
-        try:
-            # read css
-            css_file = self.__get_platform_resource_path("dark_palette.css")
-            f = open(css_file)
-            css_data = f.read()
-            f.close()
-            css_data = self._resolve_sg_stylesheet_tokens(css_data)
-            app = QtCore.QCoreApplication.instance()
-
-            app.setStyleSheet(css_data)
-        except Exception as e:
-            self.log_error(
-                "The standard toolkit dark stylesheet could not be set up! The look and feel of your "
-                "toolkit apps may be sub standard. Please contact support. Details: %s"
-                % e
-            )
 
     def _get_standard_qt_stylesheet(self):
         """
@@ -3174,6 +3090,8 @@ def _start_engine(engine_name, tk, old_context, new_context):
         # register this engine as the current engine
         set_current_engine(engine)
 
+    metrics_cache.consume()
+
     return engine
 
 
@@ -3288,7 +3206,7 @@ def start_shotgun_engine(tk, entity_type, context):
     # get the location for our engine
     if constants.SHOTGUN_ENGINE_NAME not in env.get_engines():
         raise TankMissingEngineError(
-            "Cannot find a SG engine in %s. Please contact support." % env
+            "Cannot find a PTR engine in %s. Please contact support." % env
         )
 
     engine_descriptor = env.get_engine_descriptor(constants.SHOTGUN_ENGINE_NAME)
@@ -3309,6 +3227,8 @@ def start_shotgun_engine(tk, entity_type, context):
 
     # register this engine as the current engine
     set_current_engine(obj)
+
+    metrics_cache.consume()
 
     return obj
 

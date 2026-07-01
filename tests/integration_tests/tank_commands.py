@@ -12,19 +12,19 @@
 This test makes sure that various tank command operations do not fail.
 """
 
-from __future__ import print_function
-
 import os
 import re
 import sys
 import shutil
 
-import unittest2
-from mock import Mock, patch
+import unittest
 from tank.util import is_linux, is_macos, is_windows, filesystem
 from tank.util import yaml_cache, zip
 
 from sgtk_integration_test import SgtkIntegrationTest
+from tank_test.tank_test_base import (
+    mock,
+)
 
 import sgtk
 
@@ -83,7 +83,7 @@ class TankCommands(SgtkIntegrationTest):
         )
         os.makedirs(install_core_folder)
 
-        cw.write_shotgun_file(Mock(get_path=lambda: "does_not_exist"))
+        cw.write_shotgun_file(mock.Mock(get_path=lambda: "does_not_exist"))
         cw.write_install_location_file()
 
         sgtk.util.filesystem.copy_folder(
@@ -108,7 +108,7 @@ class TankCommands(SgtkIntegrationTest):
 
         sgtk.set_authenticated_user(self.user)
 
-        with patch(
+        with mock.patch(
             "tank.pipelineconfig_utils.resolve_all_os_paths_to_core",
             return_value=sgtk.util.ShotgunPath.from_current_os_path(
                 self.legacy_bootstrap_core
@@ -321,7 +321,7 @@ class TankCommands(SgtkIntegrationTest):
         # Since we are using a core branch we can't do a core update.
         self.assertRegex(
             output,
-            r"You are currently running version HEAD of the SG Pipeline Toolkit",
+            r"You are currently running version HEAD of the Flow Production Tracking Toolkit",
         )
         self.assertRegex(
             output, r"No need to update the Toolkit Core API at this time!"
@@ -529,4 +529,4 @@ class TankCommands(SgtkIntegrationTest):
 
 
 if __name__ == "__main__":
-    ret_val = unittest2.main(failfast=True, verbosity=2)
+    unittest.main(failfast=True, verbosity=2)

@@ -52,7 +52,7 @@ UNNAMED_PROJECT_NAME = "unnamed"
 # latest core
 LATEST_CORE_DESCRIPTOR = {"type": "app_store", "name": "tk-core"}
 
-# default shotgun desktop python installations
+# default PTR desktop app python installations
 DESKTOP_PYTHON_MAC = "/Applications/Shotgun.app/Contents/Resources/Python/bin/python"
 DESKTOP_PYTHON_WIN = "C:\\Program Files\\Shotgun\\Python\\python.exe"
 DESKTOP_PYTHON_LINUX = "/opt/Shotgun/Python/bin/python"
@@ -65,10 +65,6 @@ BAKED_DESCRIPTOR_FOLDER_NAME = "baked"
 # environment variable that can be used to override the
 # configuration loaded when a bootstrap/plugin is starting up.
 CONFIG_OVERRIDE_ENV_VAR = "TK_BOOTSTRAP_CONFIG_OVERRIDE"
-
-# Environment variable that allows to set a specific appstore version of tk-config-basic when Python 2
-# is being used to bootstrap an engine.
-SGTK_CONFIG_LOCK_VERSION = "SGTK_CONFIG_LOCK_VERSION"
 
 # environment variable that is used to indicate a specific
 # pipeline configuration to be used.

@@ -24,7 +24,7 @@ from .util import login
 from .util import shotgun_entity
 from .util import shotgun
 from .util import get_sg_entity_name_field
-from .util import pickle, json as sgjson
+from .util import pickle
 from . import constants
 from .errors import TankError, TankContextDeserializationError
 from .path_cache import PathCache
@@ -96,7 +96,7 @@ class Context(object):
         msg.append("  Step: %s" % str(self.__step))
         msg.append("  Task: %s" % str(self.__task))
         msg.append("  User: %s" % str(self.__user))
-        msg.append("  SG URL: %s" % self.shotgun_url)
+        msg.append("  PTR URL: %s" % self.shotgun_url)
         msg.append("  Additional Entities: %s" % str(self.__additional_entities))
         msg.append("  Source Entity: %s" % str(self.__source_entity))
 
@@ -718,7 +718,7 @@ class Context(object):
         Any Context object can be serialized to/deserialized from a string.
         This can be useful if you need to pass a Context between different processes.
         As an example, the ``tk-multi-launchapp`` uses this mechanism to pass the Context
-        from the launch process (e.g. for example Shotgun Desktop) to the
+        from the launch process (e.g. for example PTR desktop app) to the
         Application (e.g. Maya) being launched. Example:
 
             >>> import sgtk
@@ -780,7 +780,7 @@ class Context(object):
             # If the serialized payload starts with a {, we have a
             # JSON-encoded string.
             if context_str[0] in ("{", b"{"):
-                data = sgjson.loads(context_str)
+                data = json.loads(context_str)
             else:
                 data = pickle.loads(context_str)
         except Exception as e:
@@ -936,7 +936,7 @@ class Context(object):
                         raise TankError(
                             "Key '%s' in template '%s' could not be populated by "
                             "context '%s' because the context does not contain a "
-                            "SG entity of type '%s'!"
+                            "PTR entity of type '%s'!"
                             % (key, template, self, key.shotgun_entity_type)
                         )
                     else:
@@ -960,8 +960,8 @@ class Context(object):
                     if not result:
                         # no record with that id in shotgun!
                         raise TankError(
-                            "Could not retrieve SG data for key '%s' in "
-                            "template '%s'. No records in SG are matching "
+                            "Could not retrieve PTR data for key '%s' in "
+                            "template '%s'. No records in PTR are matching "
                             "entity '%s' (Which is part of the current "
                             "context '%s')" % (key, template, entity, self)
                         )
@@ -994,7 +994,7 @@ class Context(object):
                         if not key.validate(processed_val):
                             raise TankError(
                                 "Template validation failed for value '%s'. This "
-                                "value was retrieved from entity %s in SG to "
+                                "value was retrieved from entity %s in PTR to "
                                 "represent key '%s' in "
                                 "template '%s'."
                                 % (processed_val, entity, key, template)
@@ -1041,26 +1041,8 @@ class Context(object):
                 else:
                     cur_path = os.path.dirname(cur_path)
 
-                    # There's odd behavior on Windows in Python 2.7.14 that causes
-                    # os.path.dirname to leave the last folder on a UNC path
-                    # unchanged, including the trailing delimiter:
-                    #
-                    # Example (on Windows using Python 2.7.14):
-                    #
-                    # >>> os.path.dirname(r"\\foo\bar\")
-                    # '\\foo\bar\'
-                    #
-                    # The problem is really that the trailing slash isn't removed, when
-                    # it seems to have been in older versions of Python. The trailing slash
-                    # trips up the logic behind validate_and_get_fields, so we end up in an
-                    # infinite loop. The fix is to just remove the trailing path separator
-                    # if it's there.
-                    #
-                    # The fact that it does not consider "\\foo" to be the dirname for
-                    # "\\foo\bar\" is actually correct, as explained here:
-                    #
-                    # https://bugs.python.org/issue27403
-                    #
+                    # On some platforms, os.path.dirname might preserve a trailing slash on UNC paths,
+                    # which could interfere with field extraction logic. This ensures the path is normalized.
                     if cur_path.endswith(os.path.sep):
                         cur_path = cur_path[:-1]
 
@@ -1323,7 +1305,7 @@ def _from_entity_type_and_id(tk, entity, source_entity=None):
 
         if sg_entity is None:
             raise TankError(
-                "Entity %s with id %s not found in ShotGrid!" % (entity_type, entity_id)
+                "Entity %s with id %s not found in Flow Production Tracking!" % (entity_type, entity_id)
             )
 
         if sg_entity.get("task"):
@@ -1344,7 +1326,16 @@ def _from_entity_type_and_id(tk, entity, source_entity=None):
 
         # make sure this was actually found in the cache
         # fall back on a shotgun lookup if not found
-        if entity_context["project"] is None:
+        # Note: We also need to check if the entity name was resolved. The project
+        # might be found in the cache (from the primary data root), but the specific
+        # entity might not have folders created yet, leaving entity["name"] as None.
+        # This commonly happens when launching a DCC from the web for a newly created
+        # Asset/Shot/Task that hasn't had its filesystem structure created yet.
+        entity_name_missing = (
+            entity_type != "Project"
+            and entity_context.get("entity", {}).get("name") is None
+        )
+        if entity_context["project"] is None or entity_name_missing:
             entity_context = _entity_from_sg(tk, entity_type, entity_id)
 
         context.update(entity_context)
@@ -1816,7 +1807,7 @@ def _task_from_sg(tk, task_id, additional_fields=None):
         "Task", [["id", "is", task_id]], standard_fields + additional_fields
     )
     if not task:
-        raise TankError("Unable to locate Task with id %s in ShotGrid" % task_id)
+        raise TankError("Unable to locate Task with id %s in Flow Production Tracking" % task_id)
 
     # add task so it can be processed with other shotgun entities
     task["task"] = {"type": "Task", "id": task_id, "name": task["content"]}
@@ -1876,7 +1867,7 @@ def _entity_from_sg(tk, entity_type, entity_id):
 
     if not data:
         raise TankError(
-            "Unable to locate %s with id %s in ShotGrid" % (entity_type, entity_id)
+            "Unable to locate %s with id %s in Flow Production Tracking" % (entity_type, entity_id)
         )
 
     # create context

@@ -25,7 +25,6 @@ from ...errors import TankError
 import sys
 import os
 import inspect
-from tank_vendor import six
 
 
 class TankQDialog(TankDialogBase):
@@ -212,7 +211,7 @@ class TankQDialog(TankDialogBase):
         else:
             self.ui.label.setText(title)
 
-        self.setWindowTitle("ShotGrid: %s" % title)
+        self.setWindowTitle("Flow Production Tracking: %s" % title)
         if os.path.exists(bundle.icon_256):
             self._window_icon = QtGui.QIcon(bundle.icon_256)
             self.setWindowIcon(self._window_icon)
@@ -230,10 +229,10 @@ class TankQDialog(TankDialogBase):
             # set up the title bar and configuration panel
 
             self.ui.tank_logo.setToolTip(
-                "This is part of the SG App %s" % self._bundle.name
+                "This is part of the PTR desktop app %s" % self._bundle.name
             )
             self.ui.label.setToolTip(
-                "This is part of the SG App %s" % self._bundle.name
+                "This is part of the PTR desktop app %s" % self._bundle.name
             )
 
             # Add our context to the header
@@ -299,11 +298,9 @@ class TankQDialog(TankDialogBase):
                 if p is None:
                     formatted = "Undefined"
                 elif show_type:
-                    formatted = "%s %s" % (p.get("type"), p.get("name"))
+                    formatted = "{} {}".format(p.get("type"), p.get("name"))
                 else:
-                    formatted = "%s" % p.get("name")
-
-                formatted = six.ensure_str(formatted)
+                    formatted = "{}".format(p.get("name"))
 
                 return formatted
 
@@ -334,7 +331,7 @@ class TankQDialog(TankDialogBase):
             tooltip += "<b>System Information</b>"
             tooltip += "<hr>"
             tooltip += (
-                "<b>SG Pipeline Toolkit Version: </b>%s<br>" % self._bundle.tank.version
+                "<b>Flow Production Tracking Toolkit Version: </b>%s<br>" % self._bundle.tank.version
             )
             tooltip += "<b>Pipeline Config: </b>%s<br>" % pc.get_name()
             tooltip += "<b>Config Path: </b>%s<br>" % pc.get_path()
@@ -344,7 +341,8 @@ class TankQDialog(TankDialogBase):
             ########################################################################################
             # now setup the info page with all the details
 
-            self.ui.details.clicked.connect(self._on_arrow)
+            self.ui.details_show.clicked.connect(self._on_arrow)
+            self.ui.details_hide.clicked.connect(self._on_arrow)
             self.ui.app_name.setText(self._bundle.display_name)
             self.ui.app_description.setText(self._bundle.description)
             # get the descriptor type (eg. git/app store/dev etc)
@@ -595,10 +593,19 @@ class TankQDialog(TankDialogBase):
                     # hide the info panel:
                     # activate page 1 again - note that this will reset all positions!
                     self.ui.stackedWidget.setCurrentIndex(0)
+
+                    # Flip arrow icon
+                    self.ui.details_show.setVisible(True)
+                    self.ui.details_hide.setVisible(False)
                 else:
                     # show the info panel:
                     # activate page 2 - note that this will reset all positions!
                     self.ui.stackedWidget.setCurrentIndex(1)
+
+                    # Flip arrow icon
+                    self.ui.details_show.setVisible(False)
+                    self.ui.details_hide.setVisible(True)
+
                     # this hides page page 1, so let's show it again
                     self.ui.page_1.show()
                     # make sure page1 stays on top
@@ -622,6 +629,9 @@ class TankQDialog(TankDialogBase):
         Toggle the visibility of the info panel, animating the transition.
         """
         if self._info_mode:
+            # Flip arrow icon
+            self.ui.details_show.setVisible(True)
+            self.ui.details_hide.setVisible(False)
 
             self.setUpdatesEnabled(False)
             try:
@@ -678,6 +688,9 @@ class TankQDialog(TankDialogBase):
             self.grp.start()
 
         else:
+            # Flip arrow icon
+            self.ui.details_show.setVisible(False)
+            self.ui.details_hide.setVisible(True)
 
             # activate page 2 - note that this will reset all positions!
             self.ui.stackedWidget.setCurrentIndex(1)

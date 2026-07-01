@@ -32,7 +32,7 @@ class BundleDescriptor(Descriptor):
         :param sg_descriptor: Connection to the current site.
         :param io_descriptor: Associated IO descriptor.
         """
-        super(BundleDescriptor, self).__init__(io_descriptor)
+        super().__init__(io_descriptor)
         self._sg_connection = sg_connection
 
     @property
@@ -121,7 +121,7 @@ class BundleDescriptor(Descriptor):
         :type core_version: str
         :param engine_descriptor: Descriptor of the engine this bundle will run under. None by default.
         :type engine_descriptor: :class:`~sgtk.bootstrap.DescriptorBundle`
-        :param desktop_version: Version of the Shotgun Desktop. None by default.
+        :param desktop_version: Version of the PTR desktop app. None by default.
         :type desktop_version: str
 
         :raises: Raised if one or multiple constraint checks has failed.
@@ -130,7 +130,10 @@ class BundleDescriptor(Descriptor):
         reasons = []
 
         self._test_version_constraint(
-            "min_sg", self._get_sg_version(self._sg_connection), "ShotGrid", reasons
+            "min_sg",
+            self._get_sg_version(self._sg_connection),
+            "Flow Production Tracking",
+            reasons,
         )
         self._test_version_constraint(
             "min_core",
@@ -179,7 +182,7 @@ class BundleDescriptor(Descriptor):
                     )
 
         self._test_version_constraint(
-            "min_desktop", desktop_version, "SG Desktop", reasons
+            "min_desktop", desktop_version, "FPTR desktop app", reasons
         )
 
         if len(reasons) > 0:
@@ -375,7 +378,7 @@ class BundleDescriptor(Descriptor):
 
                     else:
                         log.debug(
-                            "Field %s.%s already exists in ShotGrid."
+                            "Field %s.%s already exists in Flow Production Tracking."
                             % (sg_entity_type, sg_field_name)
                         )
 
@@ -431,7 +434,7 @@ class EngineDescriptor(BundleDescriptor):
         :param fallback_roots: List of immutable fallback cache locations where
             apps will be searched for.
         """
-        super(EngineDescriptor, self).__init__(sg_connection, io_descriptor)
+        super().__init__(sg_connection, io_descriptor)
 
 
 class AppDescriptor(BundleDescriptor):
@@ -453,7 +456,7 @@ class AppDescriptor(BundleDescriptor):
         :param fallback_roots: List of immutable fallback cache locations where
             apps will be searched for.
         """
-        super(AppDescriptor, self).__init__(sg_connection, io_descriptor)
+        super().__init__(sg_connection, io_descriptor)
 
 
 class FrameworkDescriptor(BundleDescriptor):
@@ -475,7 +478,7 @@ class FrameworkDescriptor(BundleDescriptor):
         :param fallback_roots: List of immutable fallback cache locations where
             apps will be searched for.
         """
-        super(FrameworkDescriptor, self).__init__(sg_connection, io_descriptor)
+        super().__init__(sg_connection, io_descriptor)
 
     def is_shared_framework(self):
         """

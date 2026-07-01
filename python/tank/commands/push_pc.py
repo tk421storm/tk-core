@@ -22,7 +22,6 @@ from ..util import ShotgunPath
 import os
 import datetime
 import shutil
-from tank_vendor.six.moves import input
 
 # Core configuration files which are associated with the core API installation and not
 # the pipeline configuration.
@@ -72,7 +71,7 @@ class PushPCAction(Action):
             },
         }
 
-        # Just a cache to query SG only once.
+        # Just a cache to query PTR only once.
         self._pipeline_configs = None
 
     def run_noninteractive(self, log, parameters):
@@ -178,7 +177,7 @@ class PushPCAction(Action):
             raise TankError(
                 "Only one pipeline configuration for this project! Need at least two "
                 "configurations in order to push. Please start by cloning a pipeline "
-                "configuration inside of ShotGrid."
+                "configuration inside of Flow Production Tracking."
             )
 
     def _run(self, log, target_id, use_symlink=False):

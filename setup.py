@@ -10,9 +10,12 @@
 
 # Basic setup.py so tk-core could be installed as
 # a standard Python package
-from __future__ import absolute_import
-from setuptools import setup, find_packages
+import os
+import re
 import subprocess
+import sys
+
+from setuptools import setup, find_packages
 
 
 def get_version():
@@ -32,9 +35,11 @@ def get_version():
     # will be picked up from the most recently added tag.
     try:
         version_git = subprocess.check_output(
-            ["git", "describe", "--abbrev=0"], universal_newlines=True
+            ["git", "describe", "--tags", "--abbrev=0"], universal_newlines=True
         ).rstrip()
-        return version_git
+        if re.match(r"v[0-9]*.[0-9]*.[0-9]*", version_git):
+            return version_git
+        return "dev"
     except:
         # Blindly ignore problems, git might be not available, or the user could
         # be installing from zip archive, etc...
@@ -46,6 +51,35 @@ def get_version():
     # this case, following TK "dev" locator pattern and the convention described here:
     # http://peak.telecommunity.com/DevCenter/setuptools#specifying-your-project-s-version
     return "dev"
+
+
+def get_install_requires():
+    """
+    Read dependencies from the version-specific requirements.txt.
+
+    This ensures pip installations use the same dependency versions
+    as those vendored in pkgs.zip for Toolkit distributions.
+
+    :returns: A list of requirement strings, e.g. ["PyYAML==6.0.2", ...].
+    """
+    req_file = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "requirements",
+        f"{sys.version_info.major}.{sys.version_info.minor}",
+        "requirements.txt",
+    )
+    if not os.path.exists(req_file):
+        raise Exception(
+            f"Python {sys.version_info.major}.{sys.version_info.minor}"
+            " is not supported"
+        )
+
+    with open(req_file) as f:
+        return [
+            line.strip()
+            for line in f
+            if line.strip() and not line.strip().startswith("#")
+        ]
 
 
 # Retrieve long description and licence from external files
@@ -65,11 +99,15 @@ finally:
 setup(
     name="sgtk",
     version=get_version(),
-    description="SG Toolkit Core API",
+    description="Flow Production Tracking Toolkit Core API",
     long_description=readme,
     author="Autodesk, Inc",
     url="https://github.com/shotgunsoftware/tk-core",
     license=license,
+    # Dependencies for pip installations (when pkgs.zip is not available).
+    # Versions are read from requirements/<python_version>/requirements.txt
+    # to stay in sync with the vendored packages in pkgs.zip.
+    install_requires=get_install_requires(),
     # Recursively discover all packages in python folder, excluding any tests
     packages=find_packages(
         "python", exclude=("*.tests", "*.tests.*", "tests.*", "tests")
@@ -77,7 +115,7 @@ setup(
     # Additional data which must sit in packages folders
     package_data={
         # If any package contains data files, include them:
-        "": ["resources/*", ".txt", "*.*"]
+        "": ["resources/*", ".txt", "*.*", "hooks/*.py"]
     },
     # Everything can be found under the python folder, but installed without it
     package_dir={"": "python"},

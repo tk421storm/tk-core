@@ -9,6 +9,7 @@
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
 import os
+import sys
 import traceback
 import pprint
 
@@ -17,7 +18,7 @@ from . import constants
 from ..descriptor import create_descriptor, Descriptor
 from .errors import TankBootstrapError, TankMissingTankNameError
 
-from ..util import filesystem
+from ..util import filesystem, version
 
 from tank_vendor import yaml
 from .configuration import Configuration
@@ -61,7 +62,7 @@ class CachedConfiguration(Configuration):
                                    should be set to None.
         :param bundle_cache_fallback_paths: List of additional paths where apps are cached.
         """
-        super(CachedConfiguration, self).__init__(path, descriptor)
+        super().__init__(path, descriptor)
         self._path = path
         self._sg_connection = sg
         self._descriptor = descriptor
@@ -114,7 +115,7 @@ class CachedConfiguration(Configuration):
         self._descriptor.ensure_local()
 
         log.debug(
-            "Verifying that all necessary SG data is "
+            "Verifying that all necessary PTR data is "
             "available in order for config %s to run..." % self
         )
 
@@ -141,12 +142,12 @@ class CachedConfiguration(Configuration):
 
         (_, unmapped_roots) = storage_roots.get_local_storages(self._sg_connection)
 
-        # get a list of all defined storage roots without a corresponding SG
+        # get a list of all defined storage roots without a corresponding PTR
         # local storage defined
         if unmapped_roots:
             raise TankBootstrapError(
                 "This configuration defines one or more storage roots that can "
-                "not be mapped to a local storage defined in ShotGrid. Please "
+                "not be mapped to a local storage defined in Flow Production Tracking. Please "
                 "update the roots.yml file in this configuration to correct "
                 "this issue. Roots file: '%s'. Unmapped storage roots: %s."
                 % (storage_roots.roots_file, ", ".join(unmapped_roots))
@@ -161,7 +162,7 @@ class CachedConfiguration(Configuration):
         if proj_data["tank_name"] is None:
             raise TankMissingTankNameError(
                 "The configuration requires you to specify a value for the project's "
-                "tank_name field in ShotGrid."
+                "tank_name field in Flow Production Tracking."
             )
 
     def status(self):
@@ -439,7 +440,7 @@ class CachedConfiguration(Configuration):
         if descriptor_dict["type"] == "shotgun" and "id" in descriptor_dict:
             if self._descriptor.associated_core_version_less_than("v0.18.120"):
                 raise TankBootstrapError(
-                    "Configurations uploaded to SG must use core API "
+                    "Configurations uploaded to PTR must use core API "
                     "version v0.18.120 or later. Please check the "
                     "core/core_api.yml file in your configuration."
                 )
